@@ -1,4 +1,5 @@
 import requests
+import json
 
 
 url = 'https://dbhub.herokuapp.com/'
@@ -28,7 +29,7 @@ class Collection:
             'doc': doc
         }
         response = requests.post(url, json=data)
-        return response.text
+        return json.loads(response.text)
 
     def read(self, id):
         params = {
@@ -37,15 +38,15 @@ class Collection:
             'id': id
         }
         response = requests.get(url, params=params)
-        return response.text
+        return json.loads(response.text)
 
     def list(self):
         params = {
             'secret': self.api_key,
             'collectionName': self.collection_name
         }
-        response = requests.get(url + '/list', params=params)
-        return response.text
+        response = requests.get(url + 'list', params=params)
+        return json.loads(response.text)
 
     def update(self, id, doc):
         data = {
@@ -55,7 +56,7 @@ class Collection:
             'doc': doc
         }
         response = requests.patch(url, json= data)
-        return response.text
+        return json.loads(response.text)
 
     def delete(self, id):
         data = {
@@ -64,4 +65,4 @@ class Collection:
             'id': id
         }
         response = requests.delete(url, params=data)
-        return response.text
+        return json.loads(response.text)
