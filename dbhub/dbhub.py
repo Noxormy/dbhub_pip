@@ -39,6 +39,14 @@ class Collection:
         response = requests.get(url, params=params)
         return response.text
 
+    def list(self):
+        params = {
+            'secret': self.api_key,
+            'collectionName': self.collection_name
+        }
+        response = requests.get(url + '/list', params=params)
+        return response.text
+
     def update(self, id, doc):
         data = {
             'secret': self.api_key,
