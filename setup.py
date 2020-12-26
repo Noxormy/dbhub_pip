@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="dbhub",  # Replace with your own username
-    version="0.0.5",
+    version="0.1.0",
     author="Noxormy",
     author_email="noxormy@gmail.com",
     description="Package to create db in one-click",
