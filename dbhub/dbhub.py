@@ -1,6 +1,8 @@
 import requests
 import json
+from types import SimpleNamespace
 
+from idna import unicode
 
 url = 'https://dbhub.herokuapp.com/'
 
@@ -22,47 +24,130 @@ class Collection:
         self.api_key = api_key
         self.collection_name = collection_name
 
-    def create(self, doc):
+    def __create(self, doc_id, doc):
         data = {
             'secret': self.api_key,
             'collectionName': self.collection_name,
-            'doc': doc
+            'doc': doc,
+            'id': doc_id
         }
         response = requests.post(url, json=data)
-        return json.loads(response.text)
+        return parse(response.text)
 
-    def read(self, id):
+    def __read(self, key):
         params = {
             'secret': self.api_key,
             'collectionName': self.collection_name,
-            'id': id
+            'id': key
         }
         response = requests.get(url, params=params)
-        return json.loads(response.text)
+        return parse(response.text)
 
-    def list(self):
+    def __list(self):
         params = {
             'secret': self.api_key,
             'collectionName': self.collection_name
         }
         response = requests.get(url + 'list', params=params)
-        return json.loads(response.text)
+        array = parse(response.text)
+        response_dict = {}
+        for elem in array:
+            key = elem[0]
+            value = elem[1]
+            response_dict[key] = value
+        return response_dict
 
-    def update(self, id, doc):
+    def __update(self, key, doc):
         data = {
             'secret': self.api_key,
             'collectionName': self.collection_name,
-            'id': id,
+            'id': key,
             'doc': doc
         }
         response = requests.patch(url, json= data)
-        return json.loads(response.text)
+        return parse(response.text)
 
-    def delete(self, id):
+    def __delete(self, key):
         data = {
             'secret': self.api_key,
             'collectionName': self.collection_name,
-            'id': id
+            'id': key
         }
         response = requests.delete(url, params=data)
-        return json.loads(response.text)
+        return parse(response.text)
+
+    # dict imitation
+
+    def __setitem__(self, key, item):
+        self.__create(key, item)
+
+    def __getitem__(self, key):
+        return self.__read(key)
+
+    def __repr__(self):
+        self.__dict__ = self.__list()
+        return repr(self.__dict__)
+
+    def __len__(self):
+        self.__dict__ = self.__list()
+        return len(self.__dict__)
+
+    def __delitem__(self, key):
+        return self.__delete(key)
+
+    def clear(self):
+        self.__dict__ = self.__list()
+        for key in self.__dict__.keys():
+            self.__delete(key)
+
+    def copy(self):
+        self.__dict__ = self.__list()
+        return self.__dict__.copy()
+
+    def has_key(self, k):
+        self.__dict__ = self.__list()
+        return k in self.__dict__
+
+    def update(self, *args, **kwargs):
+        self.__dict__ = self.__list()
+        self.__dict__.update(*args, **kwargs)
+        for key, value in self.__dict__.items():
+            self.__update(key, value)
+
+    def keys(self):
+        self.__dict__ = self.__list()
+        return self.__dict__.keys()
+
+    def values(self):
+        self.__dict__ = self.__list()
+        return self.__dict__.values()
+
+    def items(self):
+        self.__dict__ = self.__list()
+        return self.__dict__.items()
+
+    def pop(self, key, default_key):
+        self.__dict__ = self.__list()
+        true_key = key if key in self.__dict__ else default_key if default_key in self.__dict__ else None
+        if true_key:
+            item = self.__dict__[true_key]
+            self.__delete(true_key)
+            return item
+        else:
+            raise KeyError(key)
+
+    def __contains__(self, item):
+        self.__dict__ = self.__list()
+        return item in self.__dict__
+
+    def __iter__(self):
+        self.__dict__ = self.__list()
+        return iter(self.__dict__)
+
+    def __unicode__(self):
+        self.__dict__ = self.__list()
+        return unicode(repr(self.__dict__))
+
+
+def parse(json_data):
+    return json.loads(json_data, object_hook=lambda d: SimpleNamespace(**d))
