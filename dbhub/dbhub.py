@@ -1,8 +1,5 @@
 import requests
 import json
-from types import SimpleNamespace
-
-from idna import unicode
 
 url = 'https://dbhub.herokuapp.com/'
 
@@ -29,7 +26,7 @@ class Collection:
         data = {
             'secret': self.__api_key__,
             'collectionName': self.__collection_name__,
-            'doc': doc,
+            'doc': doc.__dict__,
             'id': doc_id
         }
         response = requests.post(url, json=data)
@@ -63,7 +60,7 @@ class Collection:
             'secret': self.__api_key__,
             'collectionName': self.__collection_name__,
             'id': key,
-            'doc': doc
+            'doc': doc.__dict__
         }
         response = requests.patch(url, json= data)
         return parse(response.text)
@@ -151,4 +148,9 @@ class Collection:
 
 
 def parse(json_data):
-    return json.loads(json_data, object_hook=lambda d: SimpleNamespace(**d))
+    return json.loads(json_data, object_hook=obj)
+
+
+class obj:
+    def __init__(self, dict_data):
+        self.__dict__.update(dict_data)
