@@ -1,3 +1,5 @@
+from easydict import EasyDict as edict
+
 import requests
 import json
 
@@ -26,11 +28,11 @@ class Collection:
         data = {
             'secret': self.__api_key__,
             'collectionName': self.__collection_name__,
-            'doc': doc.__dict__,
+            'doc': doc,
             'id': doc_id
         }
         response = requests.post(url, json=data)
-        return parse(response.text)
+        return json.loads(response.text)
 
     def __read(self, key):
         params = {
@@ -39,7 +41,8 @@ class Collection:
             'id': key
         }
         response = requests.get(url, params=params)
-        return parse(response.text)
+        parsed_data = edict(json.loads(response.text))
+        return parsed_data if not hasattr(parsed_data, 'Error') else None
 
     def __list(self):
         params = {
@@ -47,11 +50,11 @@ class Collection:
             'collectionName': self.__collection_name__
         }
         response = requests.get(url + 'list', params=params)
-        array = parse(response.text)
+        array = json.loads(response.text)
         response_dict = {}
         for elem in array:
             key = elem[0]
-            value = elem[1]
+            value = edict(elem[1])
             response_dict[key] = value
         return response_dict
 
@@ -60,10 +63,10 @@ class Collection:
             'secret': self.__api_key__,
             'collectionName': self.__collection_name__,
             'id': key,
-            'doc': doc.__dict__
+            'doc': doc
         }
         response = requests.patch(url, json= data)
-        return parse(response.text)
+        return json.loads(response.text)
 
     def __delete(self, key):
         data = {
@@ -72,7 +75,7 @@ class Collection:
             'id': key
         }
         response = requests.delete(url, params=data)
-        return parse(response.text)
+        return json.loads(response.text)
 
     # dict imitation
 
@@ -106,9 +109,9 @@ class Collection:
         self.__dict = self.__list()
         return k in self.__dict
 
-    def update(self, *args, **kwargs):
+    def update(self, *args):
         self.__dict = self.__list()
-        self.__dict.update(*args, **kwargs)
+        self.__dict.update(*args)
         for key, value in self.__dict.items():
             self.__update(key, value)
 
@@ -145,10 +148,6 @@ class Collection:
     def __str__(self):
         self.__dict = self.__list()
         return str(repr(self.__dict))
-
-
-def parse(json_data):
-    return json.loads(json_data, object_hook=obj)
 
 
 class obj:
