@@ -21,13 +21,13 @@ class DbHub:
 
 class Collection:
     def __init__(self, api_key, collection_name):
-        self.api_key = api_key
-        self.collection_name = collection_name
+        self.__api_key__ = api_key
+        self.__collection_name__ = collection_name
 
-    def __create(self, doc_id, doc):
+    def create(self, doc_id, doc):
         data = {
-            'secret': self.api_key,
-            'collectionName': self.collection_name,
+            'secret': self.__api_key__,
+            'collectionName': self.__collection_name__,
             'doc': doc,
             'id': doc_id
         }
@@ -36,8 +36,8 @@ class Collection:
 
     def __read(self, key):
         params = {
-            'secret': self.api_key,
-            'collectionName': self.collection_name,
+            'secret': self.__api_key__,
+            'collectionName': self.__collection_name__,
             'id': key
         }
         response = requests.get(url, params=params)
@@ -45,8 +45,8 @@ class Collection:
 
     def __list(self):
         params = {
-            'secret': self.api_key,
-            'collectionName': self.collection_name
+            'secret': self.__api_key__,
+            'collectionName': self.__collection_name__
         }
         response = requests.get(url + 'list', params=params)
         array = parse(response.text)
@@ -59,8 +59,8 @@ class Collection:
 
     def __update(self, key, doc):
         data = {
-            'secret': self.api_key,
-            'collectionName': self.collection_name,
+            'secret': self.__api_key__,
+            'collectionName': self.__collection_name__,
             'id': key,
             'doc': doc
         }
@@ -69,8 +69,8 @@ class Collection:
 
     def __delete(self, key):
         data = {
-            'secret': self.api_key,
-            'collectionName': self.collection_name,
+            'secret': self.__api_key__,
+            'collectionName': self.__collection_name__,
             'id': key
         }
         response = requests.delete(url, params=data)
@@ -86,7 +86,7 @@ class Collection:
 
     def __repr__(self):
         self.__dict__ = self.__list()
-        return repr(self.__dict__)
+        return repr(self)
 
     def __len__(self):
         self.__dict__ = self.__list()
@@ -106,7 +106,7 @@ class Collection:
 
     def has_key(self, k):
         self.__dict__ = self.__list()
-        return k in self.__dict__
+        return k in self.__dict__ or k in self
 
     def update(self, *args, **kwargs):
         self.__dict__ = self.__list()
@@ -144,9 +144,9 @@ class Collection:
         self.__dict__ = self.__list()
         return iter(self.__dict__)
 
-    def __unicode__(self):
-        self.__dict__ = self.__list()
-        return unicode(repr(self.__dict__))
+    # def __str__(self):
+    #     self.__dict__ = self.__list()
+    #     return str(repr(self.__dict__))
 
 
 def parse(json_data):
