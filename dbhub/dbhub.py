@@ -24,7 +24,7 @@ class Collection:
         self.__api_key__ = api_key
         self.__collection_name__ = collection_name
 
-    def create(self, doc_id, doc):
+    def __create(self, doc_id, doc):
         data = {
             'secret': self.__api_key__,
             'collectionName': self.__collection_name__,
