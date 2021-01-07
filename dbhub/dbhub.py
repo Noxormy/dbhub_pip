@@ -22,15 +22,18 @@ class Collection:
     def __init__(self, api_key, collection_name):
         self.__api_key__ = api_key
         self.__collection_name__ = collection_name
-        self.__dict = dict()
+        self.__dict = self.__list()
 
     def __create(self, doc_id, doc):
+        doc_dict = doc if isinstance(doc, dict) else dict(doc.__dict__)
         data = {
             'secret': self.__api_key__,
             'collectionName': self.__collection_name__,
-            'doc': doc,
-            'id': doc_id
+            'doc': doc_dict
         }
+        if doc_id:
+            data['id'] = doc_id
+
         response = requests.post(url, json=data)
         return json.loads(response.text)
 
@@ -81,54 +84,50 @@ class Collection:
 
     def __setitem__(self, key, item):
         self.__create(key, item)
+        self.__dict = self.__list()
 
     def __getitem__(self, key):
-        return self.__read(key)
+        return self.__dict[key]
 
     def __repr__(self):
-        self.__dict = self.__list()
-        return repr(self.__list())
+        return repr(self.__dict)
 
     def __len__(self):
-        self.__dict = self.__list()
         return len(self.__dict)
 
     def __delitem__(self, key):
-        return self.__delete(key)
+        deleted = self.__delete(key)
+        self.__dict = self.__list()
+        return deleted
 
     def clear(self):
-        self.__dict = self.__list()
         for key in self.__dict.keys():
             self.__delete(key)
+        self.__dict = self.__list()
 
     def copy(self):
-        self.__dict = self.__list()
         return self.__dict.copy()
 
     def has_key(self, k):
-        self.__dict = self.__list()
         return k in self.__dict
 
     def update(self, *args):
-        self.__dict = self.__list()
         self.__dict.update(*args)
         for key, value in self.__dict.items():
             self.__update(key, value)
 
-    def keys(self):
         self.__dict = self.__list()
+
+    def keys(self):
         return self.__dict.keys()
 
     def values(self):
-        self.__dict = self.__list()
         return self.__dict.values()
 
     def items(self):
-        self.__dict = self.__list()
         return self.__dict.items()
 
     def pop(self, key, default_key):
-        self.__dict = self.__list()
         true_key = key if key in self.__dict else default_key if default_key in self.__dict else None
         if true_key:
             item = self.__dict[true_key]
@@ -138,15 +137,12 @@ class Collection:
             raise KeyError(key)
 
     def __contains__(self, item):
-        self.__dict = self.__list()
         return str(item) in self.__dict
 
     def __iter__(self):
-        self.__dict = self.__list()
         return iter(self.__dict)
 
     def __str__(self):
-        self.__dict = self.__list()
         return str(repr(self.__dict))
 
 
