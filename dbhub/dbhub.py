@@ -35,7 +35,8 @@ class Collection:
             data['id'] = doc_id
 
         response = requests.post(url, json=data)
-        return json.loads(response.text)
+        parsed_data = json.loads(response.text)
+        return parsed_data if not hasattr(parsed_data, 'Error') else None
 
     def __read(self, key):
         params = {
@@ -54,6 +55,9 @@ class Collection:
         }
         response = requests.get(url + 'list', params=params)
         array = json.loads(response.text)
+        if hasattr(array, 'Error'):
+            return None
+
         response_dict = {}
         for elem in array:
             key = elem[0]
@@ -68,8 +72,9 @@ class Collection:
             'id': key,
             'doc': doc
         }
-        response = requests.patch(url, json= data)
-        return json.loads(response.text)
+        response = requests.patch(url, json=data)
+        parsed_data = json.loads(response.text)
+        return parsed_data if not hasattr(parsed_data, 'Error') else None
 
     def __delete(self, key):
         data = {
@@ -78,16 +83,22 @@ class Collection:
             'id': key
         }
         response = requests.delete(url, params=data)
-        return json.loads(response.text)
+        parsed_data = json.loads(response.text)
+        return parsed_data if not hasattr(parsed_data, 'Error') else None
 
     # dict imitation
 
     def __setitem__(self, key, item):
-        self.__create(key, item)
-        self.__dict = self.__list()
+        real_key = str(key)
+        result = self.__create(real_key, item)
+        if result:
+            self.__dict[real_key] = item
+        else:
+            raise Exception('Element with key [%s] was not added into the collection' % real_key)
 
     def __getitem__(self, key):
-        return self.__dict[key]
+        real_key = str(key)
+        return edict(self.__dict[real_key])
 
     def __repr__(self):
         return repr(self.__dict)
@@ -96,27 +107,36 @@ class Collection:
         return len(self.__dict)
 
     def __delitem__(self, key):
-        deleted = self.__delete(key)
-        self.__dict = self.__list()
-        return deleted
+        real_key = str(key)
+        deleted = self.__delete(real_key)
+        if deleted:
+            del self.__dict[real_key]
+            return deleted
+        else:
+            raise Exception('Cannot delete element with key %s from the collection' % real_key)
 
     def clear(self):
         for key in self.__dict.keys():
-            self.__delete(key)
-        self.__dict = self.__list()
+            deleted = self.__delete(key)
+            if not deleted:
+                raise Exception('Cannot delete element with key [%s] from the collection' % key)
+
+        self.__dict.clear()
 
     def copy(self):
         return self.__dict.copy()
 
     def has_key(self, k):
-        return k in self.__dict
+        real_key = str(k)
+        return real_key in self.__dict
 
-    def update(self, *args):
-        self.__dict.update(*args)
-        for key, value in self.__dict.items():
-            self.__update(key, value)
-
-        self.__dict = self.__list()
+    def update(self, upd_dict):
+        self.__dict.update(upd_dict)
+        for key, value in upd_dict.items():
+            real_key = str(key)
+            updated = self.__update(real_key, value)
+            if not updated:
+                raise Exception('Cannot update element with key [%s]' % real_key)
 
     def keys(self):
         return self.__dict.keys()
@@ -128,13 +148,18 @@ class Collection:
         return self.__dict.items()
 
     def pop(self, key, default_key):
-        true_key = key if key in self.__dict else default_key if default_key in self.__dict else None
+        real_key = str(key)
+        real_default_key = str(default_key)
+
+        true_key = real_key if real_key in self.__dict else real_default_key if real_default_key in self.__dict else None
         if true_key:
             item = self.__dict[true_key]
-            self.__delete(true_key)
-            return item
+            deleted = self.__delete(true_key)
+            if not deleted:
+                raise Exception('Cannot delete element with key [%s] from the collection' % true_key)
+            return edict(item)
         else:
-            raise KeyError(key)
+            raise KeyError(real_key)
 
     def __contains__(self, item):
         return str(item) in self.__dict
