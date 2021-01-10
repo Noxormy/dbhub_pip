@@ -90,9 +90,10 @@ class Collection:
 
     def __setitem__(self, key, item):
         real_key = str(key)
+        self.__dict[real_key] = item
         result = self.__create(real_key, item)
         if result:
-            self.__dict[real_key] = item
+            return
         else:
             raise Exception('Element with key [%s] was not added into the collection' % real_key)
 
