@@ -1,5 +1,5 @@
 from dbhub.dbhub import DbHub
 
 
-def get_database(api_key):
-    return DbHub(api_key)
+def get_database(token, db_name):
+    return DbHub(token, db_name)
