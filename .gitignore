@@ -3,3 +3,4 @@
 /venv/
 /.idea/
 /dbhub.egg-info/
+/main.py
