@@ -1,7 +1,9 @@
 from easydict import EasyDict as edict
-
 import requests
 import json
+
+from dbhub.exceptions import is_res_ok, get_error, NotFoundException, WrongDataException, CredentialsException, \
+    ServiceException
 
 url = 'https://dbhub-py.herokuapp.com/'
 
@@ -23,7 +25,13 @@ class Collection:
         self.__headers = {"Authorization": "Bearer %s" % token}
         self.__db_name = db_name
         self.__collection_name = collection_name
-        self.__dict = self.__list()
+
+        try:
+            self.__dict = self.__list()
+        except CredentialsException as e:
+            raise CredentialsException(e.msg) from e
+        except NotFoundException:
+            self.__dict = {}
 
     def __create(self, doc_id, doc):
         doc_dict = to_dict(doc)
@@ -36,18 +44,23 @@ class Collection:
             data['doc_id'] = doc_id
 
         response = requests.post(url, json=data, headers=self.__headers)
-        parsed_data = json.loads(response.text)
-        return parsed_data
+        if is_res_ok(response):
+            return json.loads(response.text)
+        else:
+            raise get_error(response)
 
-    def __read(self, key):
-        params = {
-            'db_name': self.__db_name,
-            'collection_name': self.__collection_name,
-            'doc_id': key
-        }
-        response = requests.get(url, params=params, headers=self.__headers)
-        parsed_data = edict(json.loads(response.text))
-        return parsed_data
+    # def __read(self, key):
+    #     params = {
+    #         'db_name': self.__db_name,
+    #         'collection_name': self.__collection_name,
+    #         'doc_id': key
+    #     }
+    #     response = requests.get(url, params=params, headers=self.__headers)
+    #
+    #     if is_res_ok(response):
+    #         return edict(json.loads(response.text))
+    #     else:
+    #         raise get_error(response)
 
     def __list(self):
         params = {
@@ -55,13 +68,17 @@ class Collection:
             'collection_name': self.__collection_name
         }
         response = requests.get(url + 'list', params=params, headers=self.__headers)
-        response_dict = json.loads(response.text)
 
-        parsed_data = {}
-        for key, value in response_dict.items():
-            parsed_data[key] = edict(value)
+        if is_res_ok(response):
+            response_dict = json.loads(response.text)
 
-        return response_dict
+            parsed_data = {}
+            for key, value in response_dict.items():
+                parsed_data[key] = edict(value)
+
+            return response_dict
+        else:
+            raise get_error(response)
 
     def __update(self, key, doc):
         doc_dict = to_dict(doc)
@@ -73,8 +90,11 @@ class Collection:
             'data': doc_dict
         }
         response = requests.patch(url, json=data, headers=self.__headers)
-        parsed_data = json.loads(response.text)
-        return parsed_data
+
+        if is_res_ok(response):
+            return json.loads(response.text)
+        else:
+            raise get_error(response)
 
     def __delete(self, key):
         data = {
@@ -83,19 +103,25 @@ class Collection:
             'doc_id': key
         }
         response = requests.delete(url, params=data, headers=self.__headers)
-        parsed_data = json.loads(response.text)
-        return parsed_data
+
+        if is_res_ok(response):
+            return json.loads(response.text)
+        else:
+            raise get_error(response)
 
     # dict imitation
 
     def __setitem__(self, key, item):
         real_key = str(key)
-        self.__dict[real_key] = item
-        result = self.__create(real_key, item)
-        if result:
-            return
-        else:
-            raise Exception('Element with key [%s] was not added into the collection' % real_key)
+
+        try:
+            result = self.__create(real_key, item)
+            self.__dict[real_key] = item
+            return result
+        except WrongDataException:
+            raise ValueError(item)  # Consider that None is not valid value
+        except ServiceException as e:
+            raise ServiceException(e.msg)
 
     def __getitem__(self, key):
         real_key = str(key)
@@ -109,18 +135,16 @@ class Collection:
 
     def __delitem__(self, key):
         real_key = str(key)
-        deleted = self.__delete(real_key)
-        if deleted:
+
+        try:
+            self.__delete(real_key)
             del self.__dict[real_key]
-            return deleted
-        else:
-            raise Exception('Cannot delete element with key %s from the collection' % real_key)
+        except NotFoundException as e:
+            raise KeyError(key)
 
     def clear(self):
         for key in self.__dict.keys():
-            deleted = self.__delete(key)
-            if not deleted:
-                raise Exception('Cannot delete element with key [%s] from the collection' % key)
+            self.__delitem__(key)
 
         self.__dict.clear()
 
@@ -132,12 +156,18 @@ class Collection:
         return real_key in self.__dict
 
     def update(self, upd_dict):
-        self.__dict.update(upd_dict)
-        for key, value in upd_dict.items():
-            real_key = str(key)
-            updated = self.__update(real_key, value)
-            if not updated:
-                raise Exception('Cannot update element with key [%s]' % real_key)
+        try:
+            for key, value in upd_dict.items():
+                real_key = str(key)
+                self.__update(real_key, value)
+
+            self.__dict.update(upd_dict)
+        except WrongDataException as e:
+            raise ValueError(upd_dict)  # Consider that None is invalid value, you can use {} or []
+        except NotFoundException as e:
+            raise KeyError(upd_dict)  # Probably you've tried to update the element that not exist
+        except Exception as e:        # This method should only be used for existing elements
+            raise e
 
     def keys(self):
         return self.__dict.keys()
@@ -148,19 +178,17 @@ class Collection:
     def items(self):
         return self.__dict.items()
 
-    def pop(self, key, default_key):
+    def pop(self, key, default=None):
         real_key = str(key)
-        real_default_key = str(default_key)
+        if not (real_key in self.__dict):
+            if not default:
+                raise KeyError(key)
+            else:
+                return default
 
-        true_key = real_key if real_key in self.__dict else real_default_key if real_default_key in self.__dict else None
-        if true_key:
-            item = self.__dict[true_key]
-            deleted = self.__delete(true_key)
-            if not deleted:
-                raise Exception('Cannot delete element with key [%s] from the collection' % true_key)
-            return edict(item)
-        else:
-            raise KeyError(real_key)
+        item = self.__dict[real_key]
+        self.__delitem__(real_key)
+        return edict(item)
 
     def __contains__(self, item):
         return str(item) in self.__dict
