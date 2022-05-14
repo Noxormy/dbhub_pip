@@ -22,8 +22,11 @@ class UnknownException(ServiceException):
     pass
 
 
+OK_CODES = [200, 201, 202]
+
+
 def is_res_ok(response):
-    return response.status_code == requests.codes.ok
+    return response.status_code in OK_CODES
 
 
 def get_error(response):
